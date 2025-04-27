@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI DR Detection - Hospital UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Basic Reset & Font */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        body {
+            background-color: #f4f8fb;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #0077cc;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-around;
+            background-color: #f0f0f0;
+            padding: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: #0077cc;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0.5rem;
+        }
+
+        .nav-link.active {
+            border-bottom: 2px solid #0077cc;
+        }
+
+        .container {
+            padding: 1rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        input[type="file"] {
+            padding: 0.5rem;
+        }
+
+        button {
+            padding: 0.75rem;
+            background-color: #0077cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #005fa3;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .prediction-box {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+
+        footer {
+            background-color: #e0e0e0;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Smart DR Diagnosis System</h1>
+        <p>AI-Powered Retinal Disease Detection</p>
+    </header>
+
+    <nav>
+        <a href="#home" class="nav-link active">Home</a>
+        <a href="#upload" class="nav-link">Upload</a>
+        <a href="#about" class="nav-link">About</a>
+        <a href="#contact" class="nav-link">Contact</a>
+    </nav>
+
+    <div class="container">
+        <section id="home" class="tab-section">
+            <div class="card">
+                <h2>Welcome</h2>
+                <p>This platform enables early detection of Diabetic Retinopathy using deep learning models. The system classifies DR severity and provides explainable results to support ophthalmologists and patients.</p>
+            </div>
+        </section>
+
+        <section id="upload" class="tab-section" style="display: none;">
+            <div class="card">
+                <h2>Upload Retinal Image</h2>
+                <form id="upload-form" enctype="multipart/form-data">
+                    <input type="file" name="file" id="image-input" accept="image/*" required>
+                    <button type="submit">Diagnose</button>
+                </form>
+
+                <div style="margin-top: 1rem;">
+                    <img id="uploaded-image" src="" style="display:none;" alt="Uploaded Image">
+                    <div id="prediction-label" class="prediction-box" style="display:none;"></div>
+                    <div id="description-box" style="margin-top:0.5rem;"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="tab-section" style="display: none;">
+            <div class="card">
+                <h2>About the Project</h2>
+                <p>This system uses VGG16 for DR classification. Patho-GAN and Grad-CAM will soon be integrated for synthetic image generation and model explainability, providing richer clinical support.</p>
+            </div>
+        </section>
+
+        <section id="contact" class="tab-section" style="display: none;">
+            <div class="card">
+                <h2>Contact</h2>
+                <p>Email: dr-support@hospitalai.org<br>Phone: +123-456-7890</p>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        &copy; 2025 AI Hospital | All rights reserved.
+    </footer>
+
+    <script>
+        // Navigation tab logic
+        document.querySelectorAll(".nav-link").forEach(link => {
+            link.addEventListener("click", function (e) {
+                e.preventDefault();
+                document.querySelectorAll(".tab-section").forEach(sec => sec.style.display = "none");
+                document.querySelectorAll(".nav-link").forEach(lnk => lnk.classList.remove("active"));
+                const id = this.getAttribute("href");
+                document.querySelector(id).style.display = "block";
+                this.classList.add("active");
+            });
+        });
+
+        // Upload form logic
+        const form = document.getElementById("upload-form");
+        const uploadedImg = document.getElementById("uploaded-image");
+        const predictionLabel = document.getElementById("prediction-label");
+        const descriptionBox = document.getElementById("description-box");
+
+        const severityColors = {
+            "No DR": "#28a745",
+            "Mild": "#ffc107",
+            "Moderate": "#fd7e14",
+            "Severe": "#dc3545",
+            "Proliferative DR": "#6f42c1"
+        };
+
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.image_url) {
+                    uploadedImg.src = data.image_url;
+                    uploadedImg.style.display = "block";
+                }
+
+                predictionLabel.innerText = `Diagnosis: ${data.prediction}`;
+                predictionLabel.style.backgroundColor = severityColors[data.prediction] || "#0077cc";
+                predictionLabel.style.color = "white";
+                predictionLabel.style.display = "block";
+
+                descriptionBox.innerText = data.description;
+            } catch (err) {
+                predictionLabel.innerText = "Error processing the image.";
+                predictionLabel.style.backgroundColor = "#dc3545";
+                predictionLabel.style.color = "white";
+                predictionLabel.style.display = "block";
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>
